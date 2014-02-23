@@ -19,7 +19,7 @@ function localStorageBackend() {
 }
 
 function wsBackbone(opts) {
-	var cacheBackend = options.cacheBackend;
+	var cache_backend = opts.cache_backend;
 
 	var jsock = jSock(opts);
 
@@ -44,7 +44,7 @@ function wsBackbone(opts) {
 	Backbone.sync = function(method, model, options) {
 		var urlBefore = options.url || _.result(model, 'url') || url_error(); 
 		if (method == 'read') {
-			var cached = cacheBackend.get(urlBefore);
+			var cached = cache_backend.get(urlBefore);
 			if (cached != null) {
 				jsock.log_debug('Loaded', urlBefore, 'from localStorage');
 				var data = JSON.parse(cached);
@@ -78,7 +78,7 @@ function wsBackbone(opts) {
 					}
 				}
 				if (_.result(model, 'localStorage')) {
-					cacheBackend.set(mobj.Object.URI, JSON.stringify(model));
+					cache_backend.set(mobj.Object.URI, JSON.stringify(model));
 					jsock.log_debug('Stored', mobj.Object.URI, 'in localStorage');
 				}
 			});
