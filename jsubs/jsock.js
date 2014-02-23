@@ -76,6 +76,7 @@ function jSock(opts) {
 
   that.setup_connection = null;
 	that.setup_connection = function() {
+	  that.state.reconnecting = false;
 		that.token_producer({
 			error: function() {
 				if (that.state.backoff < 30000) {
@@ -88,7 +89,7 @@ function jSock(opts) {
 					}
 				}
 				if (!state.reconnecting) {
-					that.log_error('Scheduling refetch of token in', backoff, 'ms');
+					that.log_error('Scheduling regeneration of token in', that.state.backoff, 'ms');
 					state.reconnecting = true;
 					setTimeout(that.setup_connection, that.state.backoff);
 				}
