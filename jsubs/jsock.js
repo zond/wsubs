@@ -113,7 +113,7 @@ function jSock(opts) {
 					that.state.open = false;
 					that.log_error('Socket closed');
 					if (that.state.backoff < 30000) {
-						backoff *= 2;
+						that.state.backoff *= 2;
 					}
 					if (!that.state.reconnecting) {
 						that.log_error('Scheduling reopen');
@@ -124,7 +124,7 @@ function jSock(opts) {
 				that.state.ws.onopen = function() {
 					that.state.open = true;
 					that.log_info("Socket opened");
-					backoff = 500;
+					that.state.backoff = 500;
 					if (that.state.started) {
 						for (var url in that.state.subscriptions) {
 							that.log_debug('Re-subscribing to', url);
