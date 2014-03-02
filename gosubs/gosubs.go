@@ -152,7 +152,6 @@ type Context interface {
 	SetMatch([]string)
 	Data() JSON
 	SetData(JSON)
-	Clean() Context
 }
 
 /*

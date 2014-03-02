@@ -20,14 +20,6 @@ func NewContext(conn *websocket.Conn, message *Message, principal string, logger
 	}
 }
 
-func (self *defaultContext) Clean() *defaultContext {
-	self.conn = nil
-	self.message = nil
-	self.data = JSON{nil}
-	self.match = nil
-	return self
-}
-
 func (self *defaultContext) Conn() *websocket.Conn {
 	return self.conn
 }
