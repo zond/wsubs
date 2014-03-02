@@ -192,7 +192,6 @@ function jSock(opts) {
 	};
 
   that.subscribe = function(url, cb) {
-		that.log_debug('Subscribing to', url);
 		that.state.subscriptions[url] = cb;
 		send_subscription(url);
 	};
