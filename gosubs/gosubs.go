@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sync"
 	"time"
 
 	"code.google.com/p/go.net/websocket"
@@ -240,6 +241,21 @@ type Router struct {
 	OnDisconnectFactory func(ws *websocket.Conn, principal string) func()
 	OnConnect           func(ws *websocket.Conn, principal string)
 	DevMode             bool
+	subscribers         map[string]map[string]bool
+	lock                *sync.RWMutex
+}
+
+/*
+IsSubscriber returns true if principal is currently subscribing to uri.
+*/
+func (self *Router) IsSubscriber(principal, uri string) (result bool) {
+	self.lock.RLock()
+	defer self.lock.RUnlock()
+	subs, found := self.subscribers[principal]
+	if found {
+		result = subs[uri]
+	}
+	return
 }
 
 /*
@@ -327,6 +343,10 @@ func (self *Router) RPC(method string, handler RPCHandler) (result *RPC) {
 	return
 }
 
+/*
+HandleResourceMessage will handle the message that produced c, by finding
+a matching resource (if there is one) and sending it the context.
+*/
 func (self *Router) HandleResourceMessage(c Context) (err error) {
 	for _, resource := range self.Resources {
 		if !resource.Authenticated[c.Message().Type] || c.Principal() != "" {
@@ -334,7 +354,30 @@ func (self *Router) HandleResourceMessage(c Context) (err error) {
 				if match := resource.Path.FindStringSubmatch(c.Message().Object.URI); match != nil {
 					c.SetMatch(match)
 					c.SetData(JSON{c.Message().Object.Data})
-					return handler(c)
+					if err = handler(c); err == nil && c.Principal() != "" {
+						switch c.Message().Type {
+						case SubscribeType:
+							self.lock.Lock()
+							defer self.lock.Unlock()
+							subs, found := self.subscribers[c.Principal()]
+							if !found {
+								subs = map[string]bool{}
+								self.subscribers[c.Principal()] = subs
+							}
+							subs[c.Message().Object.URI] = true
+						case UnsubscribeType:
+							self.lock.Lock()
+							defer self.lock.Unlock()
+							subs, found := self.subscribers[c.Principal()]
+							if found {
+								delete(subs, c.Message().Object.URI)
+							}
+							if len(subs) == 0 {
+								delete(self.subscribers, c.Principal())
+							}
+						}
+					}
+					return
 				}
 			}
 		}
@@ -342,6 +385,10 @@ func (self *Router) HandleResourceMessage(c Context) (err error) {
 	return fmt.Errorf("Unrecognized URI for %v", Prettify(c.Message()))
 }
 
+/*
+HandleRPCMessage will handle the message that produced c, by finding
+a matching RPC method (if there is one) and sending it the context.
+*/
 func (self *Router) HandleRPCMessage(c Context) (err error) {
 	for _, rpc := range self.RPCs {
 		if !rpc.Authenticated || c.Principal() != "" {
