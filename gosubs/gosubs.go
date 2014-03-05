@@ -242,11 +242,6 @@ type Router struct {
 	DevMode             bool
 }
 
-func (self *Router) SetDevMode() *Router {
-	self.DevMode = true
-	return self
-}
-
 /*
 DefaultOnConnect will just log the incoming connection
 */
