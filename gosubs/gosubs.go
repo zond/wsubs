@@ -401,18 +401,16 @@ SetupConnection will try to find a principal for the provided connection, log it
 return if it's ok to continue processing it.
 */
 func (self *Router) SetupConnection(ws *websocket.Conn) (principal string, ok bool) {
-	if self.DevMode {
-		principal = ws.Request().URL.Query().Get("email")
-	} else {
-		if tok := ws.Request().URL.Query().Get("token"); tok != "" {
-			token, err := DecodeToken(ws.Request().URL.Query().Get("token"))
-			if err != nil {
-				self.Errorf("\t%v\t%v\t[invalid token: %v]", ws.Request().URL, ws.Request().RemoteAddr, err)
-				self.DeliverError(ws, nil, err)
-				return
-			}
-			principal = token.Principal
+	if tok := ws.Request().URL.Query().Get("token"); tok != "" {
+		token, err := DecodeToken(ws.Request().URL.Query().Get("token"))
+		if err != nil {
+			self.Errorf("\t%v\t%v\t[invalid token: %v]", ws.Request().URL, ws.Request().RemoteAddr, err)
+			self.DeliverError(ws, nil, err)
+			return
 		}
+		principal = token.Principal
+	} else if self.DevMode {
+		principal = ws.Request().URL.Query().Get("email")
 	}
 	self.Infof("\t%v\t%v\t%v <-", ws.Request().URL, ws.Request().RemoteAddr, principal)
 	ok = true
