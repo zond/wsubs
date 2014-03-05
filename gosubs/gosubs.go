@@ -239,6 +239,12 @@ type Router struct {
 	LogLevel            int
 	OnDisconnectFactory func(ws *websocket.Conn, principal string) func()
 	OnConnect           func(ws *websocket.Conn, principal string)
+	DevMode             bool
+}
+
+func (self *Router) SetDevMode() *Router {
+	self.DevMode = true
+	return self
 }
 
 /*
@@ -395,14 +401,18 @@ SetupConnection will try to find a principal for the provided connection, log it
 return if it's ok to continue processing it.
 */
 func (self *Router) SetupConnection(ws *websocket.Conn) (principal string, ok bool) {
-	if tok := ws.Request().URL.Query().Get("token"); tok != "" {
-		token, err := DecodeToken(ws.Request().URL.Query().Get("token"))
-		if err != nil {
-			self.Errorf("\t%v\t%v\t[invalid token: %v]", ws.Request().URL, ws.Request().RemoteAddr, err)
-			self.DeliverError(ws, nil, err)
-			return
+	if self.DevMode {
+		principal = ws.Request().URL.Query().Get("email")
+	} else {
+		if tok := ws.Request().URL.Query().Get("token"); tok != "" {
+			token, err := DecodeToken(ws.Request().URL.Query().Get("token"))
+			if err != nil {
+				self.Errorf("\t%v\t%v\t[invalid token: %v]", ws.Request().URL, ws.Request().RemoteAddr, err)
+				self.DeliverError(ws, nil, err)
+				return
+			}
+			principal = token.Principal
 		}
-		principal = token.Principal
 	}
 	self.Infof("\t%v\t%v\t%v <-", ws.Request().URL, ws.Request().RemoteAddr, principal)
 	ok = true
