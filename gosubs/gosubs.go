@@ -131,31 +131,6 @@ type Method struct {
 }
 
 /*
-Loggers be loggin'
-*/
-type Logger interface {
-	Fatalf(format string, params ...interface{})
-	Errorf(format string, params ...interface{})
-	Infof(format string, params ...interface{})
-	Debugf(format string, params ...interface{})
-	Tracef(format string, params ...interface{})
-}
-
-/*
-Context describes a single WebSocket message and its environment
-*/
-type Context interface {
-	Logger
-	Conn() *websocket.Conn
-	Message() *Message
-	Principal() string
-	Match() []string
-	SetMatch([]string)
-	Data() JSON
-	SetData(JSON)
-}
-
-/*
 ResourceHandler will handle a message regarding an operation on a resource
 */
 type ResourceHandler func(c Context) error
@@ -248,7 +223,7 @@ type Router struct {
 /*
 IsSubscriber returns true if principal is currently subscribing to uri.
 */
-func (self *Router) IsSubscriber(principal, uri string) (result bool) {
+func (self *Router) IsSubscribing(principal, uri string) (result bool) {
 	self.lock.RLock()
 	defer self.lock.RUnlock()
 	subs, found := self.subscribers[principal]

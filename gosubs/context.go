@@ -2,21 +2,62 @@ package gosubs
 
 import "code.google.com/p/go.net/websocket"
 
+/*
+SubscriptionManager be managin' subscriptions
+*/
+type SubscriptionManager interface {
+	IsSubscribing(principal, uri string) bool
+}
+
+/*
+Loggers be loggin'
+*/
+type Logger interface {
+	Fatalf(format string, params ...interface{})
+	Errorf(format string, params ...interface{})
+	Infof(format string, params ...interface{})
+	Debugf(format string, params ...interface{})
+	Tracef(format string, params ...interface{})
+}
+
+/*
+LoggingSubscriptionManager logs and manages subscriptions...
+*/
+type LoggingSubscriptionManager interface {
+	SubscriptionManager
+	Logger
+}
+
+/*
+Context describes a single WebSocket message and its environment
+*/
+type Context interface {
+	Logger
+	Conn() *websocket.Conn
+	Message() *Message
+	Principal() string
+	Match() []string
+	SetMatch([]string)
+	Data() JSON
+	SetData(JSON)
+	IsSubscribing(principal, uri string) bool
+}
+
 type defaultContext struct {
 	conn      *websocket.Conn
 	message   *Message
 	principal string
 	match     []string
 	data      JSON
-	logger    Logger
+	parent    LoggingSubscriptionManager
 }
 
-func NewContext(conn *websocket.Conn, message *Message, principal string, logger Logger) Context {
+func NewContext(conn *websocket.Conn, message *Message, principal string, parent LoggingSubscriptionManager) Context {
 	return &defaultContext{
 		conn:      conn,
 		message:   message,
 		principal: principal,
-		logger:    logger,
+		parent:    parent,
 	}
 }
 
@@ -49,21 +90,25 @@ func (self *defaultContext) SetData(j JSON) {
 }
 
 func (self *defaultContext) Fatalf(format string, args ...interface{}) {
-	self.logger.Fatalf(format, args...)
+	self.parent.Fatalf(format, args...)
 }
 
 func (self *defaultContext) Errorf(format string, args ...interface{}) {
-	self.logger.Errorf(format, args...)
+	self.parent.Errorf(format, args...)
 }
 
 func (self *defaultContext) Infof(format string, args ...interface{}) {
-	self.logger.Infof(format, args...)
+	self.parent.Infof(format, args...)
 }
 
 func (self *defaultContext) Debugf(format string, args ...interface{}) {
-	self.logger.Debugf(format, args...)
+	self.parent.Debugf(format, args...)
 }
 
 func (self *defaultContext) Tracef(format string, args ...interface{}) {
-	self.logger.Tracef(format, args...)
+	self.parent.Tracef(format, args...)
+}
+
+func (self *defaultContext) IsSubscribing(principal, uri string) bool {
+	return self.parent.IsSubscribing(principal, uri)
 }
