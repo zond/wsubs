@@ -198,7 +198,9 @@ NewRouter returns a router connected to db
 */
 func NewRouter() (result *Router) {
 	result = &Router{
-		Logger: log.New(os.Stdout, "", 0),
+		Logger:      log.New(os.Stdout, "", 0),
+		lock:        &sync.RWMutex{},
+		subscribers: map[string]map[string]bool{},
 	}
 	result.OnDisconnectFactory = result.DefaultOnDisconnectFactory
 	result.OnConnect = result.DefaultOnConnect
