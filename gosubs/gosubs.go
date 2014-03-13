@@ -239,7 +239,7 @@ func (self *Router) IsSubscribing(principal, uri string) (result bool) {
 DefaultOnConnect will just log the incoming connection
 */
 func (self *Router) DefaultOnConnect(ws *websocket.Conn, principal string) {
-	self.Infof("\t%v\t%v\t%v <-", ws.Request().URL, ws.Request().RemoteAddr, principal)
+	self.Infof("%v\t%v\t%v <-", ws.Request().URL, ws.Request().RemoteAddr, principal)
 }
 
 /*
@@ -247,7 +247,7 @@ DefaultOnDisconnectFactory will return functions that just log the disconnecting
 */
 func (self *Router) DefaultOnDisconnectFactory(ws *websocket.Conn, principal string) func() {
 	return func() {
-		self.Infof("\t%v\t%v\t%v -> [unsubscribing all]", ws.Request().URL.Path, ws.Request().RemoteAddr, principal)
+		self.Infof("%v\t%v\t%v -> [unsubscribing all]", ws.Request().URL.Path, ws.Request().RemoteAddr, principal)
 	}
 }
 
@@ -423,7 +423,7 @@ func (self *Router) SetupConnection(ws *websocket.Conn) (principal string, ok bo
 	if tok := ws.Request().URL.Query().Get("token"); tok != "" {
 		token, err := DecodeToken(ws.Request().URL.Query().Get("token"))
 		if err != nil {
-			self.Errorf("\t%v\t%v\t[invalid token: %v]", ws.Request().URL, ws.Request().RemoteAddr, err)
+			self.Errorf("%v\t%v\t[invalid token: %v]", ws.Request().URL, ws.Request().RemoteAddr, err)
 			self.DeliverError(ws, nil, err)
 			return
 		}
@@ -431,7 +431,7 @@ func (self *Router) SetupConnection(ws *websocket.Conn) (principal string, ok bo
 	} else if self.DevMode {
 		principal = ws.Request().URL.Query().Get("email")
 	}
-	self.Infof("\t%v\t%v\t%v <-", ws.Request().URL, ws.Request().RemoteAddr, principal)
+	self.Infof("%v\t%v\t%v <-", ws.Request().URL, ws.Request().RemoteAddr, principal)
 	ok = true
 	return
 }
@@ -459,19 +459,19 @@ func (self *Router) ProcessMessages(ws *websocket.Conn, principal string, handle
 			start = time.Now()
 			if err = handlerFunc(message); err != nil {
 				if message.Method != nil {
-					self.Errorf("\t%v\t%v\t%v\t%v\t%v\t%v", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message.Type, message.Method.Name, err)
+					self.Errorf("%v\t%v\t%v\t%v\t%v\t%v", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message.Type, message.Method.Name, err)
 				} else if message.Object != nil {
-					self.Errorf("\t%v\t%v\t%v\t%v\t%v\t%v", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message.Type, message.Object.URI, err)
+					self.Errorf("%v\t%v\t%v\t%v\t%v\t%v", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message.Type, message.Object.URI, err)
 				} else {
-					self.Errorf("\t%v\t%v\t%v\t%+v\t%v", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message, err)
+					self.Errorf("%v\t%v\t%v\t%+v\t%v", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message, err)
 				}
 				self.DeliverError(ws, message, err)
 			}
 			if message.Method != nil {
-				self.Debugf("\t%v\t%v\t%v\t%v\t%v\t%v <-", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message.Type, message.Method.Name, time.Now().Sub(start))
+				self.Debugf("%v\t%v\t%v\t%v\t%v\t%v <-", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message.Type, message.Method.Name, time.Now().Sub(start))
 			}
 			if message.Object != nil {
-				self.Debugf("\t%v\t%v\t%v\t%v\t%v\t%v <-", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message.Type, message.Object.URI, time.Now().Sub(start))
+				self.Debugf("%v\t%v\t%v\t%v\t%v\t%v <-", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message.Type, message.Object.URI, time.Now().Sub(start))
 			}
 			if self.LogLevel > TraceLevel {
 				if message.Method != nil && message.Method.Data != nil {
