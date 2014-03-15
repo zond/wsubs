@@ -321,6 +321,21 @@ func (self *Router) RPC(method string, handler RPCHandler) (result *RPC) {
 }
 
 /*
+RemoveSubscriber will remember that principal stopped subscribing to uri
+*/
+func (self *Router) RemoveSubscriber(principal, uri string) {
+	self.lock.Lock()
+	defer self.lock.Unlock()
+	subs, found := self.subscribers[principal]
+	if found {
+		delete(subs, uri)
+	}
+	if len(subs) == 0 {
+		delete(self.subscribers, principal)
+	}
+}
+
+/*
 HandleResourceMessage will handle the message that produced c, by finding
 a matching resource (if there is one) and sending it the context.
 */
@@ -343,15 +358,7 @@ func (self *Router) HandleResourceMessage(c Context) (err error) {
 							}
 							subs[c.Message().Object.URI] = true
 						case UnsubscribeType:
-							self.lock.Lock()
-							defer self.lock.Unlock()
-							subs, found := self.subscribers[c.Principal()]
-							if found {
-								delete(subs, c.Message().Object.URI)
-							}
-							if len(subs) == 0 {
-								delete(self.subscribers, c.Principal())
-							}
+							self.RemoveSubscriber(c.Principal(), c.Message().Object.URI)
 						}
 					}
 					return
