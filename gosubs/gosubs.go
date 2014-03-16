@@ -438,7 +438,7 @@ func (self *Router) SetupConnection(ws *websocket.Conn) (principal string, ok bo
 	} else if self.DevMode {
 		principal = ws.Request().URL.Query().Get("email")
 	}
-	self.Infof("%v\t%v\t%v <-", ws.Request().URL, ws.Request().RemoteAddr, principal)
+	self.OnConnect(ws, principal)
 	ok = true
 	return
 }
