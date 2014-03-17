@@ -21,16 +21,11 @@ type Token struct {
 }
 
 /*
-Change this...
-*/
-var Secret = "something very secret"
-
-/*
 GetHash calculates a hash for this Token
 */
-func (self *Token) GetHash() (result []byte, err error) {
+func (self *Token) GetHash(secret string) (result []byte, err error) {
 	h := sha512.New()
-	if _, err = h.Write([]byte(fmt.Sprintf("%#v,%v,%#v", self.Principal, self.Timeout.UnixNano(), Secret))); err != nil {
+	if _, err = h.Write([]byte(fmt.Sprintf("%#v,%v,%#v", self.Principal, self.Timeout.UnixNano(), secret))); err != nil {
 		return
 	}
 	result = h.Sum(nil)
@@ -40,9 +35,9 @@ func (self *Token) GetHash() (result []byte, err error) {
 /*
 Encode will set the Encoded field for this Token to an encoded version of itself
 */
-func (self *Token) Encode() (err error) {
+func (self *Token) Encode(secret string) (err error) {
 	self.Encoded = ""
-	if self.Hash, err = self.GetHash(); err != nil {
+	if self.Hash, err = self.GetHash(secret); err != nil {
 		return
 	}
 	buf := &bytes.Buffer{}
@@ -61,7 +56,7 @@ func (self *Token) Encode() (err error) {
 /*
 DecodeToken unpacks s into a Token, that it validates (hash and timeout) and returns
 */
-func DecodeToken(s string) (result *Token, err error) {
+func DecodeToken(secret, s string) (result *Token, err error) {
 	dec := gob.NewDecoder(base64.NewDecoder(base64.URLEncoding, bytes.NewBufferString(s)))
 	tok := &Token{}
 	if err = dec.Decode(tok); err != nil {
@@ -71,7 +66,7 @@ func DecodeToken(s string) (result *Token, err error) {
 		err = fmt.Errorf("Token %+v is timed out", tok)
 		return
 	}
-	correctHash, err := tok.GetHash()
+	correctHash, err := tok.GetHash(secret)
 	if err != nil {
 		return
 	}

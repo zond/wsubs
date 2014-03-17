@@ -220,6 +220,7 @@ type Router struct {
 	DevMode             bool
 	subscribers         map[string]map[string]bool
 	lock                *sync.RWMutex
+	Secret              string
 }
 
 /*
@@ -428,7 +429,7 @@ return if it's ok to continue processing it.
 */
 func (self *Router) SetupConnection(ws *websocket.Conn) (principal string, ok bool) {
 	if tok := ws.Request().URL.Query().Get("token"); tok != "" {
-		token, err := DecodeToken(ws.Request().URL.Query().Get("token"))
+		token, err := DecodeToken(self.Secret, ws.Request().URL.Query().Get("token"))
 		if err != nil {
 			self.Errorf("%v\t%v\t[invalid token: %v]", ws.Request().URL, ws.Request().RemoteAddr, err)
 			self.DeliverError(ws, nil, err)
