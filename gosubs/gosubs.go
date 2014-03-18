@@ -110,7 +110,7 @@ Error encapsulates an error
 */
 type Error struct {
 	Cause interface{}
-	Error error
+	Error string
 }
 
 /*
@@ -416,7 +416,7 @@ func (self *Router) DeliverError(ws *websocket.Conn, cause interface{}, err erro
 		Type: ErrorType,
 		Error: &Error{
 			Cause: cause,
-			Error: err,
+			Error: err.Error(),
 		},
 	}); err != nil {
 		self.Errorf("%v", err)
