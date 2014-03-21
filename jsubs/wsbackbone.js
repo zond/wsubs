@@ -63,8 +63,8 @@ function wsBackbone(opts) {
 				if (mobj.Type == 'Delete') {
 					if (model.models != null) {
 						_.each(mobj.Object.Data, function(element) {
-							var model = model.get(element.Id);
-							model.remove(model, { silent: true });
+							var bit = model.get(element.Id);
+							model.remove(bit, { silent: true });
 						});
 						model.trigger('reset');
 					} else {
