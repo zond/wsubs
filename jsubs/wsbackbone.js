@@ -19,6 +19,7 @@ function localStorageBackend() {
 }
 
 function wsBackbone(opts) {
+
 	var cache_backend = opts.cache_backend;
 
 	var jsock = jSock(opts);

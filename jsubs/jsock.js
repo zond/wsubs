@@ -2,6 +2,7 @@
 function jSock(opts) {
   var that = this;
 
+  that.state_handler = opts.state_handler;
   that.token_producer = opts.token_producer;
 	that.url = opts.url;
   that.start = opts.start;
@@ -120,6 +121,9 @@ function jSock(opts) {
 						state.reconnecting = true;
 						setTimeout(that.setup_connection, that.state.backoff);
 					}
+				  if (that.state_handler) {
+					  that.state_handler(that.state);
+					}
 				};
 				that.state.ws.onopen = function() {
 					that.state.open = true;
@@ -136,6 +140,9 @@ function jSock(opts) {
 							that.start();
 							that.start = null;
 						}
+					}
+				  if (that.state_handler) {
+					  that.state_handler(that.state);
 					}
 				};
 				that.state.ws.onerror = function(err) {
@@ -155,6 +162,9 @@ function jSock(opts) {
 						that.log_error('Scheduling reopen');
 						that.state.reconnecting = true;
 						setTimeout(that.setup_connection, that.state.backoff);
+					}
+				  if (that.state_handler) {
+					  that.state_handler(that.state);
 					}
 				};
 				that.state.ws.onmessage = function(ev) {
