@@ -83,7 +83,7 @@ func (self JSON) GetStringSlice(key string) (result []string) {
 	is := self.Data.(map[string]interface{})[key].([]interface{})
 	result = make([]string, len(is))
 	for index, i := range is {
-		result[index] = i.(string)
+		result[index] = fmt.Sprint(i)
 	}
 	return
 }
@@ -92,7 +92,7 @@ func (self JSON) GetStringSlice(key string) (result []string) {
 GetString returns the value under key as a string.
 */
 func (self JSON) GetString(key string) string {
-	return self.Data.(map[string]interface{})[key].(string)
+	return fmt.Sprint(self.Data.(map[string]interface{})[key])
 }
 
 /*
