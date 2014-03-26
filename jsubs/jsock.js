@@ -198,7 +198,7 @@ function jSock(opts) {
 				URI: url,
 			},
 		}));
-			delete(that.state.subscriptions[url]);
+		delete(that.state.subscriptions[url]);
 	};
 
   that.subscribe = function(url, cb) {
