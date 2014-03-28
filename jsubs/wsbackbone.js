@@ -79,7 +79,11 @@ function wsBackbone(opts) {
 					}
 				}
 				if (_.result(model, 'localStorage')) {
-					cache_backend.set(mobj.Object.URI, JSON.stringify(model));
+				  var filtered = model;
+					if (typeof model.storageFilter == 'function') {
+					  filtered = model.storageFilter();
+					}
+					cache_backend.set(mobj.Object.URI, JSON.stringify(filtered));
 					jsock.log_debug('Stored', mobj.Object.URI, 'in localStorage');
 				}
 			});
