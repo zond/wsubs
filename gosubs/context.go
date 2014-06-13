@@ -1,12 +1,16 @@
 package gosubs
 
-import "code.google.com/p/go.net/websocket"
+import (
+	"time"
+
+	"code.google.com/p/go.net/websocket"
+)
 
 /*
 SubscriptionManager be managin' subscriptions
 */
 type SubscriptionManager interface {
-	IsSubscribing(principal, uri string) bool
+	IsSubscribing(principal, uri string, timeout time.Duration) bool
 }
 
 /*
@@ -40,7 +44,7 @@ type Context interface {
 	SetMatch([]string)
 	Data() JSON
 	SetData(JSON)
-	IsSubscribing(principal, uri string) bool
+	IsSubscribing(principal, uri string, timeout time.Duration) bool
 }
 
 type defaultContext struct {
@@ -109,6 +113,6 @@ func (self *defaultContext) Tracef(format string, args ...interface{}) {
 	self.parent.Tracef(format, args...)
 }
 
-func (self *defaultContext) IsSubscribing(principal, uri string) bool {
-	return self.parent.IsSubscribing(principal, uri)
+func (self *defaultContext) IsSubscribing(principal, uri string, timeout time.Duration) bool {
+	return self.parent.IsSubscribing(principal, uri, timeout)
 }

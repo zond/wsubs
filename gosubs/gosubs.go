@@ -193,6 +193,11 @@ func (self *RPC) Auth() *RPC {
 
 type RPCs []*RPC
 
+type subscriber struct {
+	lastActive    time.Time
+	subscriptions map[string]struct{}
+}
+
 /*
 NewRouter returns a router connected to db
 */
@@ -200,7 +205,7 @@ func NewRouter() (result *Router) {
 	result = &Router{
 		Logger:      log.New(os.Stdout, "", 0),
 		lock:        &sync.RWMutex{},
-		subscribers: map[string]map[string]bool{},
+		subscribers: map[string]subscriber{},
 	}
 	result.OnDisconnectFactory = result.DefaultOnDisconnectFactory
 	result.OnConnect = result.DefaultOnConnect
@@ -218,20 +223,32 @@ type Router struct {
 	OnDisconnectFactory func(ws *websocket.Conn, principal string) func()
 	OnConnect           func(ws *websocket.Conn, principal string)
 	DevMode             bool
-	subscribers         map[string]map[string]bool
+	subscribers         map[string]subscriber
 	lock                *sync.RWMutex
 	Secret              string
 }
 
 /*
+MarkActive will timestamp the principal as active, for purposes of checking whether the principal is subscribing.
+*/
+func (self *Router) MarkActive(principal string) {
+	self.lock.Lock()
+	defer self.lock.Unlock()
+	subs, found := self.subscribers[principal]
+	if found {
+		subs.lastActive = time.Now()
+	}
+}
+
+/*
 IsSubscriber returns true if principal is currently subscribing to uri.
 */
-func (self *Router) IsSubscribing(principal, uri string) (result bool) {
+func (self *Router) IsSubscribing(principal, uri string, timeout time.Duration) (result bool) {
 	self.lock.RLock()
 	defer self.lock.RUnlock()
 	subs, found := self.subscribers[principal]
-	if found {
-		result = subs[uri]
+	if found && subs.lastActive.Add(timeout).After(time.Now()) {
+		_, result = subs.subscriptions[uri]
 	}
 	return
 }
@@ -329,9 +346,9 @@ func (self *Router) RemoveSubscriber(principal, uri string) {
 	defer self.lock.Unlock()
 	subs, found := self.subscribers[principal]
 	if found {
-		delete(subs, uri)
+		delete(subs.subscriptions, uri)
 	}
-	if len(subs) == 0 {
+	if len(subs.subscriptions) == 0 {
 		delete(self.subscribers, principal)
 	}
 }
@@ -354,10 +371,13 @@ func (self *Router) HandleResourceMessage(c Context) (err error) {
 							defer self.lock.Unlock()
 							subs, found := self.subscribers[c.Principal()]
 							if !found {
-								subs = map[string]bool{}
+								subs = subscriber{
+									subscriptions: map[string]struct{}{},
+								}
 								self.subscribers[c.Principal()] = subs
 							}
-							subs[c.Message().Object.URI] = true
+							subs.lastActive = time.Now()
+							subs.subscriptions[c.Message().Object.URI] = struct{}{}
 						case UnsubscribeType:
 							self.RemoveSubscriber(c.Principal(), c.Message().Object.URI)
 						}
@@ -382,6 +402,9 @@ func (self *Router) HandleRPCMessage(c Context) (err error) {
 				c.SetData(JSON{c.Message().Method.Data})
 				if resp, err = rpc.Handler(c); err != nil {
 					return
+				}
+				if c.Principal() != "" {
+					self.MarkActive(c.Principal())
 				}
 				return websocket.JSON.Send(c.Conn(), Message{
 					Type: RPCType,
