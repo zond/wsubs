@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"code.google.com/p/go.net/websocket"
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -257,7 +257,7 @@ func (self *Router) IsSubscribing(principal, uri string, timeout time.Duration) 
 DefaultOnConnect will just log the incoming connection
 */
 func (self *Router) DefaultOnConnect(ws *websocket.Conn, principal string) {
-	self.Infof("%v\t%v\t%v <-", ws.Request().URL, ws.Request().RemoteAddr, principal)
+	self.Infof("%v\t%v <-", ws.RemoteAddr(), principal)
 }
 
 /*
@@ -265,7 +265,7 @@ DefaultOnDisconnectFactory will return functions that just log the disconnecting
 */
 func (self *Router) DefaultOnDisconnectFactory(ws *websocket.Conn, principal string) func() {
 	return func() {
-		self.Infof("%v\t%v\t%v -> [unsubscribing all]", ws.Request().URL.Path, ws.Request().RemoteAddr, principal)
+		self.Infof("%v\t%v -> [unsubscribing all]", ws.RemoteAddr(), principal)
 	}
 }
 
@@ -406,7 +406,7 @@ func (self *Router) HandleRPCMessage(c Context) (err error) {
 				if c.Principal() != "" {
 					self.MarkActive(c.Principal())
 				}
-				return websocket.JSON.Send(c.Conn(), Message{
+				return c.Conn().WriteJSON(Message{
 					Type: RPCType,
 					Method: &Method{
 						Name: c.Message().Method.Name,
@@ -435,7 +435,7 @@ func (self *Router) handleMessage(ws *websocket.Conn, message *Message, principa
 DeliverError sends an error message along the provided WebSocket connection
 */
 func (self *Router) DeliverError(ws *websocket.Conn, cause interface{}, err error) {
-	if err = websocket.JSON.Send(ws, &Message{
+	if err = ws.WriteJSON(&Message{
 		Type: ErrorType,
 		Error: &Error{
 			Cause: cause,
@@ -446,23 +446,26 @@ func (self *Router) DeliverError(ws *websocket.Conn, cause interface{}, err erro
 	}
 }
 
+func (self *Router) checkPrincipal(r *http.Request) (principal string, ok bool) {
+	if tok := r.URL.Query().Get("token"); tok != "" {
+		token, err := DecodeToken(self.Secret, r.URL.Query().Get("token"))
+		if err != nil {
+			self.Errorf("%v\t[invalid token: %v]", r.RemoteAddr, err)
+			return
+		}
+		principal = token.Principal
+	} else if self.DevMode {
+		principal = r.URL.Query().Get("email")
+	}
+	ok = true
+	return
+}
+
 /*
 SetupConnection will try to find a principal for the provided connection, log it, and
 return if it's ok to continue processing it.
 */
 func (self *Router) SetupConnection(ws *websocket.Conn) (principal string, ok bool) {
-	if tok := ws.Request().URL.Query().Get("token"); tok != "" {
-		token, err := DecodeToken(self.Secret, ws.Request().URL.Query().Get("token"))
-		if err != nil {
-			self.Errorf("%v\t%v\t[invalid token: %v]", ws.Request().URL, ws.Request().RemoteAddr, err)
-			self.DeliverError(ws, nil, err)
-			return
-		}
-		principal = token.Principal
-	} else if self.DevMode {
-		principal = ws.Request().URL.Query().Get("email")
-	}
-	self.OnConnect(ws, principal)
 	ok = true
 	return
 }
@@ -486,23 +489,23 @@ func (self *Router) ProcessMessages(ws *websocket.Conn, principal string, handle
 	var start time.Time
 	for {
 		message := &Message{}
-		if err := websocket.JSON.Receive(ws, message); err == nil {
+		if err := ws.ReadJSON(message); err == nil {
 			start = time.Now()
 			if err = handlerFunc(message); err != nil {
 				if message.Method != nil {
-					self.Errorf("%v\t%v\t%v\t%v\t%v\t%v", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message.Type, message.Method.Name, err)
+					self.Errorf("%v\t%v\t%v\t%v\t%v", ws.RemoteAddr(), principal, message.Type, message.Method.Name, err)
 				} else if message.Object != nil {
-					self.Errorf("%v\t%v\t%v\t%v\t%v\t%v", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message.Type, message.Object.URI, err)
+					self.Errorf("%v\t%v\t%v\t%v\t%v", ws.RemoteAddr(), principal, message.Type, message.Object.URI, err)
 				} else {
-					self.Errorf("%v\t%v\t%v\t%+v\t%v", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message, err)
+					self.Errorf("%v\t%v\t%+v\t%v", ws.RemoteAddr(), principal, message, err)
 				}
 				self.DeliverError(ws, message, err)
 			}
 			if message.Method != nil {
-				self.Debugf("%v\t%v\t%v\t%v\t%v\t%v <-", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message.Type, message.Method.Name, time.Now().Sub(start))
+				self.Debugf("%v\t%v\t%v\t%v\t%v <-", ws.RemoteAddr(), principal, message.Type, message.Method.Name, time.Now().Sub(start))
 			}
 			if message.Object != nil {
-				self.Debugf("%v\t%v\t%v\t%v\t%v\t%v <-", ws.Request().URL.Path, ws.Request().RemoteAddr, principal, message.Type, message.Object.URI, time.Now().Sub(start))
+				self.Debugf("%v\t%v\t%v\t%v\t%v <-", ws.RemoteAddr(), principal, message.Type, message.Object.URI, time.Now().Sub(start))
 			}
 			if self.LogLevel > TraceLevel {
 				if message.Method != nil && message.Method.Data != nil {
@@ -521,9 +524,29 @@ func (self *Router) ProcessMessages(ws *websocket.Conn, principal string, handle
 	}
 }
 
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
 /*
 Implements http.Handler
 */
 func (self *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	websocket.Handler(self.handleConnection).ServeHTTP(w, r)
+	principal, ok := self.checkPrincipal(r)
+	if !ok {
+		return
+	}
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		self.Errorf("Unable to upgrade %+r: %v", r, err)
+		return
+	}
+	handlerFunc := func(message *Message) error {
+		return self.handleMessage(ws, message, principal)
+	}
+
+	self.ProcessMessages(ws, principal, handlerFunc)
+	defer self.OnDisconnectFactory(ws, principal)()
+	self.OnConnect(ws, principal)
 }

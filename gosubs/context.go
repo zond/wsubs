@@ -3,7 +3,7 @@ package gosubs
 import (
 	"time"
 
-	"code.google.com/p/go.net/websocket"
+	"github.com/gorilla/websocket"
 )
 
 /*
