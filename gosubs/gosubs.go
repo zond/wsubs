@@ -446,7 +446,7 @@ func (self *Router) DeliverError(ws *websocket.Conn, cause interface{}, err erro
 	}
 }
 
-func (self *Router) checkPrincipal(r *http.Request) (principal string, ok bool) {
+func (self *Router) CheckPrincipal(r *http.Request) (principal string, ok bool) {
 	if tok := r.URL.Query().Get("token"); tok != "" {
 		token, err := DecodeToken(self.Secret, r.URL.Query().Get("token"))
 		if err != nil {
@@ -524,20 +524,24 @@ func (self *Router) ProcessMessages(ws *websocket.Conn, principal string, handle
 	}
 }
 
-var upgrader = websocket.Upgrader{
+var upgrader = &websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+}
+
+func (self *Router) Upgrader() *websocket.Upgrader {
+	return upgrader
 }
 
 /*
 Implements http.Handler
 */
 func (self *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	principal, ok := self.checkPrincipal(r)
+	principal, ok := self.CheckPrincipal(r)
 	if !ok {
 		return
 	}
-	ws, err := upgrader.Upgrade(w, r, nil)
+	ws, err := self.Upgrader().Upgrade(w, r, nil)
 	if err != nil {
 		self.Errorf("Unable to upgrade %+r: %v", r, err)
 		return
