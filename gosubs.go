@@ -1,4 +1,4 @@
-package gosubs
+package wsubs
 
 import (
 	"encoding/json"
