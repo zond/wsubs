@@ -3,7 +3,6 @@ package gosubs
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -489,37 +488,36 @@ func (self *Router) ProcessMessages(ws *websocket.Conn, principal string, handle
 	var start time.Time
 	for {
 		message := &Message{}
-		if err := ws.ReadJSON(message); err == nil {
-			start = time.Now()
-			if err = handlerFunc(message); err != nil {
-				if message.Method != nil {
-					self.Errorf("%v\t%v\t%v\t%v\t%v", ws.RemoteAddr(), principal, message.Type, message.Method.Name, err)
-				} else if message.Object != nil {
-					self.Errorf("%v\t%v\t%v\t%v\t%v", ws.RemoteAddr(), principal, message.Type, message.Object.URI, err)
-				} else {
-					self.Errorf("%v\t%v\t%+v\t%v", ws.RemoteAddr(), principal, message, err)
-				}
-				self.DeliverError(ws, message, err)
-			}
-			if message.Method != nil {
-				self.Debugf("%v\t%v\t%v\t%v\t%v <-", ws.RemoteAddr(), principal, message.Type, message.Method.Name, time.Now().Sub(start))
-			}
-			if message.Object != nil {
-				self.Debugf("%v\t%v\t%v\t%v\t%v <-", ws.RemoteAddr(), principal, message.Type, message.Object.URI, time.Now().Sub(start))
-			}
-			if self.LogLevel > TraceLevel {
-				if message.Method != nil && message.Method.Data != nil {
-					self.Tracef("%+v", Prettify(message.Method.Data))
-				}
-				if message.Object != nil && message.Object.Data != nil {
-					self.Tracef("%+v", Prettify(message.Object.Data))
-				}
-			}
-		} else if err == io.EOF {
-			break
-		} else {
+		err := ws.ReadJSON(message)
+		if err != nil {
 			self.DeliverError(ws, nil, err)
 			self.Errorf("%v", err)
+			break
+		}
+		start = time.Now()
+		if err = handlerFunc(message); err != nil {
+			if message.Method != nil {
+				self.Errorf("%v\t%v\t%v\t%v\t%v", ws.RemoteAddr(), principal, message.Type, message.Method.Name, err)
+			} else if message.Object != nil {
+				self.Errorf("%v\t%v\t%v\t%v\t%v", ws.RemoteAddr(), principal, message.Type, message.Object.URI, err)
+			} else {
+				self.Errorf("%v\t%v\t%+v\t%v", ws.RemoteAddr(), principal, message, err)
+			}
+			self.DeliverError(ws, message, err)
+		}
+		if message.Method != nil {
+			self.Debugf("%v\t%v\t%v\t%v\t%v <-", ws.RemoteAddr(), principal, message.Type, message.Method.Name, time.Now().Sub(start))
+		}
+		if message.Object != nil {
+			self.Debugf("%v\t%v\t%v\t%v\t%v <-", ws.RemoteAddr(), principal, message.Type, message.Object.URI, time.Now().Sub(start))
+		}
+		if self.LogLevel > TraceLevel {
+			if message.Method != nil && message.Method.Data != nil {
+				self.Tracef("%+v", Prettify(message.Method.Data))
+			}
+			if message.Object != nil && message.Object.Data != nil {
+				self.Tracef("%+v", Prettify(message.Object.Data))
+			}
 		}
 	}
 }
