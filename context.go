@@ -1,6 +1,7 @@
 package wsubs
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -95,6 +96,7 @@ func (self *defaultContext) SetData(j JSON) {
 
 func (self *defaultContext) Fatalf(format string, args ...interface{}) {
 	self.parent.Fatalf(format, args...)
+	panic(fmt.Sprintf(format, args...))
 }
 
 func (self *defaultContext) Errorf(format string, args ...interface{}) {
